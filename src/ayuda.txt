@@ -1,0 +1,9 @@
+en los routes y controller, estoy usando el paquete pg, y cuando usamos una consulta con pool.query()
+la funcion devuelve un objeto que tiene esta forma:
+ {
+  rows: [...],    
+  rowCount: 1,     
+  command: "INSERT", 
+  fields: [...],   
+}
+rows es un array que contiene las filas que devolvió la consulta.
