@@ -1,15 +1,32 @@
 import { Router } from "express";
-/*import { 
-  createRegla, getReglas, getReglaById, updateRegla, deleteRegla 
+import {
+  getReglasController,
+  getReglaByIdController,
+  createReglaController,
+  updateReglaController,
+  deleteReglaController
 } from "../controllers/reglas.controller.js";
 
 const router = Router();
 
-router.post("/", createRegla);
-router.get("/", getReglas);
-router.get("/:id", getReglaById);
-router.put("/:id", updateRegla);
-router.delete("/:id", deleteRegla);
+// Ruta para traer todas las reglas
+// GET /reglas
+router.get("/", getReglasController);
+
+//Ruta para traer una regla por ID
+// GET /reglas/:id
+router.get("/:id", getReglaByIdController);
+
+// Ruta para crear una nueva regla
+// POST /reglas
+router.post("/", createReglaController);
+
+//  Ruta para actualizar una regla por ID
+// PUT /reglas/:id
+router.put("/:id", updateReglaController);
+
+// Ruta para eliminar una regla por ID
+// DELETE /reglas/:id
+router.delete("/:id", deleteReglaController);
 
 export default router;
-*/
