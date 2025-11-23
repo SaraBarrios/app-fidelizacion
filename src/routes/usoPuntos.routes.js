@@ -1,11 +1,12 @@
-/*
 import { Router } from "express";
-import { getUsos, getUsoById } from "../controllers/usoPuntos.controller.js";
+import { getUsoPuntos, getUsoPuntoById, createUsoPunto, updateUsoPunto, deleteUsoPunto } from "../controllers/usoPuntos.controller.js";
 
 const router = Router();
 
-router.get("/", getUsos);
-router.get("/:id", getUsoById);
+router.get("/", getUsoPuntos);
+router.get("/:id", getUsoPuntoById);
+router.post("/", createUsoPunto);      
+router.put("/:id", updateUsoPunto);
+router.delete("/:id", deleteUsoPunto);
 
 export default router;
-*/
