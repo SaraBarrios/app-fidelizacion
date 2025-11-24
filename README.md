@@ -96,9 +96,21 @@ git clone https://github.com/SaraBarrios/app-fidelizacion.git
 
 2. Se recomienda limpiar la base de datos en desarrollo usando:
 
-TRUNCATE TABLE uso_puntos_detalle, uso_puntos, bolsa_puntos, vencimiento_logs, clientes, conceptos_puntos, reglas_puntos, vencimientos_puntos RESTART IDENTITY CASCADE;
+SET session_replication_role = replica;
+
+TRUNCATE TABLE uso_puntos_detalle RESTART IDENTITY CASCADE;
+TRUNCATE TABLE uso_puntos RESTART IDENTITY CASCADE;
+TRUNCATE TABLE bolsa_puntos RESTART IDENTITY CASCADE;
+TRUNCATE TABLE conceptos_puntos RESTART IDENTITY CASCADE;
+TRUNCATE TABLE reglas_puntos RESTART IDENTITY CASCADE;
+TRUNCATE TABLE vencimientos_puntos RESTART IDENTITY CASCADE;
+TRUNCATE TABLE clientes RESTART IDENTITY CASCADE;
+TRUNCATE TABLE vencimiento_logs RESTART IDENTITY CASCADE;
+
+SET session_replication_role = DEFAULT;
 
 3. Mantener los logs de vencimiento permite auditoría y seguimiento de procesos automáticos.
 
 ## Autor
 Sara B Ramirez - Proyecto de Curso de Arquitectura Web
+
