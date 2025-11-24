@@ -67,22 +67,22 @@ export const utilizarPuntos = async ({ cliente_id, puntaje_solicitado, concepto_
   try {
     await client.query("BEGIN");
 
-    // 1️⃣ Validar cliente
+    // 1- Validar cliente
     const cRes = await client.query("SELECT * FROM clientes WHERE id = $1", [cliente_id]);
     if (cRes.rows.length === 0) throw new Error("Cliente no encontrado");
 
-    // 2️⃣ Validar concepto y obtener puntos requeridos
+    // 2️ - Validar concepto y obtener puntos requeridos
     const conceptRes = await client.query("SELECT * FROM conceptos_puntos WHERE id = $1", [concepto_id]);
     if (conceptRes.rows.length === 0) throw new Error("Concepto no encontrado");
 
     const concepto = conceptRes.rows[0];
 
-    // 3️⃣ Validar que puntaje_solicitado cumpla con puntos_requeridos del concepto
+    // 3 - Validar que puntaje_solicitado cumpla con puntos_requeridos del concepto
     if (puntaje_solicitado < concepto.puntos_requeridos) {
       throw new Error(`No se puede canjear este concepto. Se requieren al menos ${concepto.puntos_requeridos} puntos.`);
     }
 
-    // 4️⃣ Calcular saldo total del cliente
+    // 4 - Calcular saldo total del cliente
     const saldoRes = await client.query(
       "SELECT COALESCE(SUM(saldo_puntos),0) as total FROM bolsa_puntos WHERE cliente_id = $1",
       [cliente_id]
@@ -90,7 +90,7 @@ export const utilizarPuntos = async ({ cliente_id, puntaje_solicitado, concepto_
     const saldoTotal = Number(saldoRes.rows[0].total);
     if (saldoTotal < puntaje_solicitado) throw new Error("Saldo insuficiente para canjear este concepto");
 
-    // 5️⃣ Insertar cabecera de uso de puntos
+    // 5 - Insertar cabecera de uso de puntos
     const usoInsert = await client.query(
       `INSERT INTO uso_puntos (cliente_id, puntaje_utilizado, fecha, concepto_id)
        VALUES ($1,$2,$3,$4) RETURNING *`,
@@ -100,7 +100,7 @@ export const utilizarPuntos = async ({ cliente_id, puntaje_solicitado, concepto_
 
     let puntosRestantes = puntaje_solicitado;
 
-    // 6️⃣ Obtener bolsas FIFO
+    // 6 - Obtener bolsas FIFO
     const bolsasRes = await client.query(
       `SELECT * FROM bolsa_puntos WHERE cliente_id = $1 AND saldo_puntos > 0 ORDER BY fecha_asignacion ASC FOR UPDATE`,
       [cliente_id]
@@ -135,7 +135,7 @@ export const utilizarPuntos = async ({ cliente_id, puntaje_solicitado, concepto_
     // Traer detalle para respuesta
     const detalle = await pool.query("SELECT * FROM uso_puntos_detalle WHERE uso_id = $1", [uso_id]);
 
-    // Enviar correo (opcional)
+    // Enviar correo 
     const cliente = cRes.rows[0];
     enviarEmailComprobante(cliente.email, {
       uso: usoInsert.rows[0],
