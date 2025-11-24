@@ -20,10 +20,16 @@ export const getUsoPuntoById = async (req, res) => {
   }
 };
 
+// POST con lógica FIFO
 export const createUsoPunto = async (req, res) => {
   try {
     const { cliente_id, puntaje_utilizado, fecha, concepto_id } = req.body;
-    const nuevoUso = await usoPuntosService.createUsoPunto({ cliente_id, puntaje_utilizado, fecha, concepto_id });
+    const nuevoUso = await usoPuntosService.createUsoPunto({
+      cliente_id,
+      puntaje_utilizado,
+      fecha,
+      concepto_id
+    });
     res.status(201).json(nuevoUso);
   } catch (error) {
     res.status(500).json({ error: error.message });
