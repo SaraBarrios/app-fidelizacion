@@ -24,29 +24,39 @@ export const convertirMontoAPuntos = async (monto) => {
 
 // ==================== CARGA DE PUNTOS ====================
 
-export const cargarPuntos = async ({ cliente_id, monto_operacion, fecha_asignacion, dias_validez }) => {
+export const cargarPuntos = async ({ cliente_id, monto_operacion }) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    // Validar cliente
+    // 1. Validar cliente
     const cRes = await client.query("SELECT * FROM clientes WHERE id = $1", [cliente_id]);
     if (cRes.rows.length === 0) throw new Error("Cliente no encontrado");
 
-    // Calcular puntos
+    // 2. Calcular puntos
     const puntos = await convertirMontoAPuntos(monto_operacion);
 
-    // Calcular fechas
-    const fechaAsign = fecha_asignacion || new Date().toISOString().slice(0, 10);
-    const resFecha = await client.query("SELECT $1::date + $2::int AS cd", [fechaAsign, dias_validez || 365]);
-    const fechaCaducidad = resFecha.rows[0].cd;
+    // 3. Obtener días de validez desde la tabla vencimientos_puntos
+    const vRes = await client.query("SELECT dias_duracion FROM vencimientos_puntos LIMIT 1");
 
-    // Insertar bolsa de puntos
+    // Si hay dato en tabla se usa, sino → 365
+    const diasValidez = vRes.rows.length > 0 ? vRes.rows[0].dias_duracion : 365;
+
+    // 4. Fechas
+    const fechaAsignacion = new Date().toISOString().slice(0, 10);
+    const resFecha = await client.query(
+      "SELECT $1::date + $2::int AS fecha",
+      [fechaAsignacion, diasValidez]
+    );
+    const fechaCaducidad = resFecha.rows[0].fecha;
+
+    // 5. Insertar bolsa de puntos
     const insert = await client.query(
       `INSERT INTO bolsa_puntos 
        (cliente_id, fecha_asignacion, fecha_caducidad, puntaje_asignado, puntaje_utilizado, saldo_puntos, monto_operacion)
-       VALUES ($1,$2,$3,$4,0,$4,$5) RETURNING *`,
-      [cliente_id, fechaAsign, fechaCaducidad, puntos, monto_operacion]
+       VALUES ($1,$2,$3,$4,0,$4,$5)
+       RETURNING *`,
+      [cliente_id, fechaAsignacion, fechaCaducidad, puntos, monto_operacion]
     );
 
     await client.query("COMMIT");
@@ -62,7 +72,7 @@ export const cargarPuntos = async ({ cliente_id, monto_operacion, fecha_asignaci
 
 // ==================== USO DE PUNTOS ====================
 
-export const utilizarPuntos = async ({ cliente_id, puntaje_solicitado, concepto_id, fecha }) => {
+export const utilizarPuntos = async ({ cliente_id, concepto_id }) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -77,10 +87,13 @@ export const utilizarPuntos = async ({ cliente_id, puntaje_solicitado, concepto_
 
     const concepto = conceptRes.rows[0];
 
-    // 3 - Validar que puntaje_solicitado cumpla con puntos_requeridos del concepto
-    if (puntaje_solicitado < concepto.puntos_requeridos) {
-      throw new Error(`No se puede canjear este concepto. Se requieren al menos ${concepto.puntos_requeridos} puntos.`);
-    }
+    // 3- el puntaje a utilizar se define desde el concepto
+    const puntajeAUtilizar = concepto.puntos_requeridos;
+
+
+    //if (puntaje_solicitado < concepto.puntos_requeridos) {
+    //  throw new Error(`No se puede canjear este concepto. Se requieren al menos ${concepto.puntos_requeridos} puntos.`);
+    //}
 
     // 4 - Calcular saldo total del cliente
     const saldoRes = await client.query(
@@ -88,17 +101,17 @@ export const utilizarPuntos = async ({ cliente_id, puntaje_solicitado, concepto_
       [cliente_id]
     );
     const saldoTotal = Number(saldoRes.rows[0].total);
-    if (saldoTotal < puntaje_solicitado) throw new Error("Saldo insuficiente para canjear este concepto");
+    if (saldoTotal < puntajeAUtilizar) throw new Error("Saldo insuficiente para canjear este concepto");
 
     // 5 - Insertar cabecera de uso de puntos
     const usoInsert = await client.query(
       `INSERT INTO uso_puntos (cliente_id, puntaje_utilizado, fecha, concepto_id)
        VALUES ($1,$2,$3,$4) RETURNING *`,
-      [cliente_id, puntaje_solicitado, fecha || new Date().toISOString().slice(0, 10), concepto_id]
+      [cliente_id, puntajeAUtilizar, new Date().toISOString().slice(0, 10), concepto_id]
     );
     const uso_id = usoInsert.rows[0].id;
 
-    let puntosRestantes = puntaje_solicitado;
+    let puntosRestantes = puntajeAUtilizar;
 
     // 6 - Obtener bolsas FIFO
     const bolsasRes = await client.query(
