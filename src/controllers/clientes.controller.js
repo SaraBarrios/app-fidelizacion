@@ -4,7 +4,9 @@ import {
   getCliente,
   deleteClienteById,
   createNewCliente,
-  updateClienteById
+  updateClienteById,
+  segmentarClientesService,
+  obtenerPromocionesParaClienteService,
 } from "../services/clientes.service.js";
 
 export const getClientes = async (req, res) => {
@@ -66,18 +68,61 @@ export const createCliente = async (req, res) => {
 
 export const updateCliente = async (req, res) => {
   try {
-    const { rowCount, rows } = await updateClienteById(req.params.id, req.body);
+    const result = await updateClienteById(req.params.id, req.body);
 
-    if (rowCount === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: "Cliente no encontrado" });
     }
 
     res.json({
       mensaje: "Cliente actualizado correctamente",
-      cliente: rows[0]
+      cliente: result.rows[0]
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error al actualizar cliente" });
+  }
+};
+
+
+// Funcionalidad para Final
+export const segmentarClientesController = async (req, res) => {
+  try {
+    const filtros = req.query; // edad_min, ciudad, nacionalidad, etc.
+    const resultado = await segmentarClientesService(filtros);
+
+    return res.json({
+      success: true,
+      cantidad: resultado.length,
+      clientes: resultado,
+    });
+  } catch (error) {
+    console.error("Error en segmentación:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error interno al segmentar clientes",
+    });
+  }
+};
+
+// PROMOCIONES PERSONALIZADAS PARA UN CLIENTE
+export const promocionesClienteController = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const promociones = await obtenerPromocionesParaClienteService(id);
+
+    return res.json({
+      success: true,
+      cantidad: promociones.length,
+      promociones,
+    });
+
+  } catch (error) {
+    console.error("Error al obtener promociones:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error interno al obtener promociones del cliente",
+    });
   }
 };

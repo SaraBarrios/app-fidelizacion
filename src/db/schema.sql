@@ -74,3 +74,29 @@ CREATE TABLE vencimiento_logs (
     fecha TIMESTAMP DEFAULT NOW(),
     bolsas_actualizadas INT
 );
+
+
+--PARA SEGUNDO FINAL
+--PARA TABLA DE CLIENTES
+
+ALTER TABLE clientes ADD COLUMN ciudad VARCHAR(100); 
+ALTER TABLE clientes ADD COLUMN nivel VARCHAR(50) DEFAULT 'BASICO';
+--Niveles posibles: BASICO, PLATA, ORO, DIAMANTE
+
+
+CREATE TABLE promociones (
+    id SERIAL PRIMARY KEY,
+    titulo VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    puntos_bonus INT DEFAULT 0,
+    edad_min INT,
+    edad_max INT,
+    nacionalidad VARCHAR(50),
+    ciudad VARCHAR(100),
+    puntos_min INT,
+    puntos_max INT,
+    nivel_requerido VARCHAR(50),
+    fecha_inicio DATE,
+    fecha_fin DATE
+);
+
