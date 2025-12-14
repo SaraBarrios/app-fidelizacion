@@ -1,5 +1,7 @@
 import { pool } from "../db/connection.js";
 import nodemailer from "nodemailer";
+import { modificarPuntosCliente } from "./clientes.service.js"; 
+
 
 // ==================== UTILITARIOS ====================
 
@@ -60,6 +62,10 @@ export const cargarPuntos = async ({ cliente_id, monto_operacion }) => {
     );
 
     await client.query("COMMIT");
+    // ----------------------------
+    // Actualizar puntos totales del cliente
+    await modificarPuntosCliente(cliente_id, puntos); // puntos positivos en carga
+    // ----------------------------
     return insert.rows[0];
 
   } catch (err) {
@@ -144,6 +150,11 @@ export const utilizarPuntos = async ({ cliente_id, concepto_id }) => {
     if (puntosRestantes > 0) throw new Error("Saldo insuficiente al intentar consumir");
 
     await client.query("COMMIT");
+
+    // ----------------------------
+    // Actualizar puntos del cliente
+    await modificarPuntosCliente(cliente_id, -puntajeAUtilizar);
+    // ----------------------------
 
     // Traer detalle para respuesta
     const detalle = await pool.query("SELECT * FROM uso_puntos_detalle WHERE uso_id = $1", [uso_id]);

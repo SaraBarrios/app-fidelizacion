@@ -1,4 +1,6 @@
 import { pool } from "../db/connection.js";
+import { modificarPuntosCliente } from "./clientes.service.js"; 
+
 
 // Obtener todos los usos
 export const getAllUsoPuntos = async () => {
@@ -72,6 +74,9 @@ export const createUsoPunto = async ({ cliente_id, puntaje_utilizado, fecha, con
     }
 
     await client.query("COMMIT");
+    // se recalcula puntos_totales y nivel
+    await modificarPuntosCliente(cliente_id, -puntaje_utilizado);
+
 
     // Traer detalle para devolver
     const detalle = await client.query(
@@ -128,6 +133,9 @@ export const deleteUsoPunto = async (id) => {
     const result = await client.query("DELETE FROM uso_puntos WHERE id=$1 RETURNING *", [id]);
 
     await client.query("COMMIT");
+    //Se recalcula el puntos_totales y nivel
+    await modificarPuntosCliente(result.rows[0].cliente_id, result.rows[0].puntaje_utilizado);
+
 
     return result.rows[0];
   } catch (error) {

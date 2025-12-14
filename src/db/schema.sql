@@ -82,6 +82,7 @@ CREATE TABLE vencimiento_logs (
 ALTER TABLE clientes ADD COLUMN ciudad VARCHAR(100); 
 ALTER TABLE clientes ADD COLUMN nivel VARCHAR(50) DEFAULT 'BASICO';
 --Niveles posibles: BASICO, PLATA, ORO, DIAMANTE
+ALTER TABLE clientes ADD COLUMN puntos_totales INT DEFAULT 0;
 
 
 CREATE TABLE promociones (
@@ -100,3 +101,11 @@ CREATE TABLE promociones (
     fecha_fin DATE
 );
 
+
+CREATE TABLE niveles_fidelizacion (
+  id SERIAL PRIMARY KEY,
+  nombre VARCHAR(50) UNIQUE NOT NULL,
+  puntos_min INT NOT NULL,
+  puntos_max INT,
+  descripcion TEXT
+);

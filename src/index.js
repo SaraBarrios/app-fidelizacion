@@ -7,6 +7,7 @@ import bolsasRoutes from "./routes/bolsas.routes.js";
 import usoPuntosRoutes from "./routes/usoPuntos.routes.js";
 import reportesRouter from "./routes/reportes.routes.js";
 import serviciosRouter from "./routes/servicios.routes.js";
+import promocionesRoutes from "./routes/promociones.routes.js";
 
 import morgan from 'morgan';
 
@@ -23,4 +24,5 @@ app.use("/bolsas", bolsasRoutes);
 app.use("/usoPuntos", usoPuntosRoutes);
 app.use("/reportes", reportesRouter);
 app.use("/servicios", serviciosRouter);
+app.use("/api", promocionesRoutes);
 app.listen(3000, () => console.log("Servidor en puerto 3000"));

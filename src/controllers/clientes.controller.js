@@ -5,9 +5,10 @@ import {
   deleteClienteById,
   createNewCliente,
   updateClienteById,
-  segmentarClientesService,
-  obtenerPromocionesParaClienteService,
+  segmentarClientesService
 } from "../services/clientes.service.js";
+import { obtenerPromocionesParaClienteService } from "../services/promociones.service.js";
+
 
 export const getClientes = async (req, res) => {
   try {

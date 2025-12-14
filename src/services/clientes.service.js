@@ -176,55 +176,72 @@ export const segmentarClientesService = async (filtros) => {
   return result.rows;
 };
 
-// SERVICIO PROMOCIONES PERSONALIZADAS
-export const obtenerPromocionesParaClienteService = async (clienteId) => {
-  // 1) Obtener datos del cliente
-  const clienteQuery = `
-    SELECT 
-      c.*,
-      EXTRACT(YEAR FROM AGE(c.fecha_nacimiento)) AS edad,
-      COALESCE(SUM(b.saldo_puntos),0) AS puntos_actuales
-    FROM clientes c
-    LEFT JOIN bolsa_puntos b ON c.id = b.cliente_id
-    WHERE c.id = $1
-    GROUP BY c.id
-  `;
-  
-  const clienteRes = await pool.query(clienteQuery, [clienteId]);
-  if (clienteRes.rowCount === 0) return [];
+export const actualizarNivelCliente = async (cliente_id, puntos_adicionales) => {
+  // 1. Obtener puntos actuales
+  const res = await pool.query(
+    "SELECT puntos_totales FROM clientes WHERE id=$1",
+    [cliente_id]
+  );
 
-  const clienteRaw = clienteRes.rows[0];
+  const total = res.rows[0].puntos_totales + puntos_adicionales;
 
-  // 2) Convertir edad y puntos a número
-  const cliente = {
-    ...clienteRaw,
-    edad: Number(clienteRaw.edad),
-    puntos_actuales: Number(clienteRaw.puntos_actuales)
-  };
+  // 2. Calcular nivel desde la BD
+  const nivelRes = await pool.query(
+    `
+    SELECT nombre
+    FROM niveles_fidelizacion
+    WHERE puntos_min <= $1
+      AND (puntos_max IS NULL OR puntos_max >= $1)
+    LIMIT 1
+    `,
+    [total]
+  );
 
-  console.log('Cliente para promociones:', cliente);
+  const nivel = nivelRes.rows[0].nombre;
 
-  // 3) Filtrar promociones según atributos del cliente
-  const promosQuery = `
-  SELECT *
-  FROM promociones
-  WHERE (edad_min IS NULL OR $1 >= edad_min)
-    AND (edad_max IS NULL OR $1 <= edad_max)
-    AND (nacionalidad IS NULL OR nacionalidad = $2)
-    AND (ciudad IS NULL OR ciudad ILIKE $3)
-    AND (nivel_requerido IS NULL OR nivel_requerido ILIKE $4)
-    AND (puntos_min IS NULL OR $5 >= puntos_min)
-    AND (puntos_max IS NULL OR $5 <= puntos_max)
-    AND (fecha_inicio IS NULL OR fecha_fin IS NULL OR (CURRENT_DATE >= fecha_inicio AND CURRENT_DATE <= fecha_fin))
-`;
+  // 3. Actualizar cliente
+  await pool.query(
+    "UPDATE clientes SET puntos_totales=$1, nivel=$2 WHERE id=$3",
+    [total, nivel, cliente_id]
+  );
 
-  const promoRes = await pool.query(promosQuery, [
-    cliente.edad,
-    cliente.nacionalidad,
-    cliente.ciudad,
-    cliente.nivel,
-    cliente.puntos_actuales,
-  ]);
+  return { puntos_totales: total, nivel };
+};
 
-  return promoRes.rows;
+export const modificarPuntosCliente = async (cliente_id, puntos) => {
+  // puntos puede ser positivo o negativo
+
+  // 1. Obtener puntos actuales
+  const res = await pool.query(
+    "SELECT puntos_totales FROM clientes WHERE id=$1",
+    [cliente_id]
+  );
+
+  const total = res.rows[0].puntos_totales + puntos;
+
+  if (total < 0) {
+    throw new Error("El cliente no tiene puntos suficientes");
+  }
+
+  // 2. Obtener nivel según total
+  const nivelRes = await pool.query(
+    `
+    SELECT nombre
+    FROM niveles_fidelizacion
+    WHERE puntos_min <= $1
+      AND (puntos_max IS NULL OR puntos_max >= $1)
+    LIMIT 1
+    `,
+    [total]
+  );
+
+  const nivel = nivelRes.rows[0].nombre;
+
+  // 3. Actualizar cliente
+  await pool.query(
+    "UPDATE clientes SET puntos_totales=$1, nivel=$2 WHERE id=$3",
+    [total, nivel, cliente_id]
+  );
+
+  return { puntos_totales: total, nivel };
 };
