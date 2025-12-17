@@ -1,6 +1,6 @@
 import { pool } from "../db/connection.js";
-import { modificarPuntosCliente } from "./clientes.service.js"; 
-
+import { modificarPuntosCliente } from "./clientes.service.js";
+import { sendEmail } from "../utiles/email.js";
 
 // Obtener todos los usos
 export const getAllUsoPuntos = async () => {
@@ -77,12 +77,35 @@ export const createUsoPunto = async ({ cliente_id, puntaje_utilizado, fecha, con
     // se recalcula puntos_totales y nivel
     await modificarPuntosCliente(cliente_id, -puntaje_utilizado);
 
-
     // Traer detalle para devolver
     const detalle = await client.query(
       "SELECT * FROM uso_puntos_detalle WHERE uso_id = $1",
       [uso_id]
     );
+
+    // Enviar correo al cliente
+    try {
+      const clienteRes = await pool.query("SELECT * FROM clientes WHERE id = $1", [cliente_id]);
+      const cliente = clienteRes.rows[0];
+
+      const html = `
+    <h2>Comprobante de uso de puntos</h2>
+    <p><b>Cliente:</b> ${cliente.nombre} ${cliente.apellido}</p>
+    <p><b>Concepto:</b> ${concepto_id}</p>
+    <p><b>Puntaje utilizado:</b> ${puntaje_utilizado}</p>
+    <p><b>Detalle por bolsa:</b> ${JSON.stringify(detalle.rows)}</p>
+  `;
+
+      await sendEmail({
+        to: cliente.email,
+        subject: "Comprobante de uso de puntos",
+        text: `Se ha realizado un canje de puntos. Puntaje utilizado: ${puntaje_utilizado}`,
+        html
+      });
+
+    } catch (error) {
+      console.error("Error enviando email:", error);
+    }
 
     return { ...resultUso.rows[0], detalle: detalle.rows };
 

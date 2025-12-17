@@ -88,6 +88,51 @@ Todos los endpoints pueden probarse con Postman.
 1. Clonar el repositorio:
 git clone https://github.com/SaraBarrios/app-fidelizacion.git
 
+## Nuevos puntos agregados para el final
+
+### Segmentación de Clientes
+
+El sistema permite segmentar clientes de forma lógica a partir de la información registrada y su comportamiento en el programa de fidelización.
+
+La segmentación puede realizarse considerando:
+- Cantidad total de puntos acumulados.
+- Cantidad de puntos utilizados.
+- Frecuencia de uso del programa.
+- Historial de operaciones registradas en la bolsa de puntos.
+
+Esta segmentación puede ser utilizada para aplicar reglas diferenciadas de promociones o análisis de clientes.
+
+### Niveles de Fidelización
+
+El sistema soporta niveles de fidelización definidos por rangos de puntos acumulados por el cliente.
+
+El nivel de fidelización puede calcularse dinámicamente a partir del saldo total de puntos del cliente y utilizarse para:
+- Aplicar promociones especiales.
+- Otorgar beneficios adicionales.
+- Análisis de comportamiento del cliente.
+
+### Canje de Puntos por Productos y Servicios
+
+El sistema permite canjear puntos acumulados por productos o servicios definidos como conceptos de puntos.
+
+- Cada producto o servicio se representa como un concepto de puntos.
+- Cada concepto define la cantidad de puntos requeridos para el canje.
+- El canje se realiza de forma transaccional.
+- Los puntos se consumen siguiendo lógica FIFO.
+- Se genera un comprobante del canje y se envía por correo electrónico.
+
+
+### Módulo de Promociones
+
+El sistema cuenta con una arquitectura preparada para un módulo de promociones.
+
+- Las promociones pueden definirse como reglas especiales de asignación de puntos.
+- Permiten otorgar puntos extra según condiciones como:
+  - Monto de operación.
+  - Fechas específicas.
+  - Tipo de cliente o nivel de fidelización.
+- El módulo puede integrarse fácilmente al proceso de carga de puntos sin afectar la lógica existente.
+
 
 ## Notas
 1. Todos los endpoints siguen la misma estructura de CRUD para consistencia.

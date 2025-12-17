@@ -1,6 +1,7 @@
 import { pool } from "../db/connection.js";
 import nodemailer from "nodemailer";
-import { modificarPuntosCliente } from "./clientes.service.js"; 
+import { modificarPuntosCliente } from "./clientes.service.js";
+import { obtenerPromocionesParaClienteService } from "./promociones.service.js";
 
 
 // ==================== UTILITARIOS ====================
@@ -31,20 +32,28 @@ export const cargarPuntos = async ({ cliente_id, monto_operacion }) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Validar cliente
+    // 1. Validar cliente,
     const cRes = await client.query("SELECT * FROM clientes WHERE id = $1", [cliente_id]);
     if (cRes.rows.length === 0) throw new Error("Cliente no encontrado");
 
-    // 2. Calcular puntos
-    const puntos = await convertirMontoAPuntos(monto_operacion);
+    // 2. Convertir monto a puntos base
+    const puntosBase = await convertirMontoAPuntos(monto_operacion);
 
-    // 3. Obtener días de validez desde la tabla vencimientos_puntos
+    // 3. Obtener promociones válidas para el cliente
+    const promociones = await obtenerPromocionesParaClienteService(cliente_id);
+
+    // 4. Calcular puntos bonus (suma de todas las promociones aplicables)
+    const bonus = promociones.reduce((sum, p) => sum + (p.puntos_bonus || 0), 0);
+
+    const puntosFinales = puntosBase + bonus;
+    
+    // 5. Obtener días de validez desde la tabla vencimientos_puntos
     const vRes = await client.query("SELECT dias_duracion FROM vencimientos_puntos LIMIT 1");
 
     // Si hay dato en tabla se usa, sino → 365
     const diasValidez = vRes.rows.length > 0 ? vRes.rows[0].dias_duracion : 365;
 
-    // 4. Fechas
+    // 6. Fechas
     const fechaAsignacion = new Date().toISOString().slice(0, 10);
     const resFecha = await client.query(
       "SELECT $1::date + $2::int AS fecha",
@@ -52,21 +61,32 @@ export const cargarPuntos = async ({ cliente_id, monto_operacion }) => {
     );
     const fechaCaducidad = resFecha.rows[0].fecha;
 
-    // 5. Insertar bolsa de puntos
+    // 7. Insertar bolsa de puntos
     const insert = await client.query(
       `INSERT INTO bolsa_puntos 
        (cliente_id, fecha_asignacion, fecha_caducidad, puntaje_asignado, puntaje_utilizado, saldo_puntos, monto_operacion)
        VALUES ($1,$2,$3,$4,0,$4,$5)
        RETURNING *`,
-      [cliente_id, fechaAsignacion, fechaCaducidad, puntos, monto_operacion]
+      [cliente_id, fechaAsignacion, fechaCaducidad, puntosFinales, monto_operacion]
     );
 
     await client.query("COMMIT");
     // ----------------------------
     // Actualizar puntos totales del cliente
-    await modificarPuntosCliente(cliente_id, puntos); // puntos positivos en carga
+    await modificarPuntosCliente(cliente_id, puntosFinales); // puntos positivos en carga
     // ----------------------------
-    return insert.rows[0];
+   
+
+    // Preparar mensaje opcional de promoción
+    let mensaje = `Has recibido ${puntosBase} puntos por tu operación.`;
+    if (bonus > 0) {
+      mensaje += ` Además se aplicaron ${bonus} puntos extra por promociones.`;
+    }
+    
+     return {
+      ...insert.rows[0],
+      mensaje
+    };
 
   } catch (err) {
     await client.query("ROLLBACK");
@@ -177,17 +197,28 @@ export const utilizarPuntos = async ({ cliente_id, concepto_id }) => {
 };
 
 
-// ==================== ENVÍO DE CORREO (Ethereal) ====================
+// ==================== ENVÍO DE CORREO (Ethereal Automático) ====================
+
+let transporter; // se inicializa solo una vez
+
+const initTransporter = async () => {
+  if (!transporter) {
+    const testAccount = await nodemailer.createTestAccount(); // crea cuenta de prueba
+    transporter = nodemailer.createTransport({
+      host: testAccount.smtp.host,
+      port: testAccount.smtp.port,
+      secure: testAccount.smtp.secure,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass,
+      },
+    });
+  }
+  return transporter;
+};
 
 const enviarEmailComprobante = async (emailDestino, contenido) => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.ethereal.email",
-    port: 587,
-    auth: {
-      user: "joyce.zieme@ethereal.email",
-      pass: "NrPyuhWJaBrBEc5EjS"
-    }
-  });
+  const t = await initTransporter();
 
   const html = `
     <h2>Comprobante de uso de puntos</h2>
@@ -195,12 +226,13 @@ const enviarEmailComprobante = async (emailDestino, contenido) => {
     <p><b>Detalle:</b> ${JSON.stringify(contenido.detalle)}</p>
   `;
 
-  const info = await transporter.sendMail({
+  const info = await t.sendMail({
     from: '"Sistema Fidelización" <no-reply@fidelizacion.com>',
     to: emailDestino,
     subject: "Comprobante de uso de puntos",
     html
   });
 
-  console.log("Correo enviado, ver en Ethereal:", nodemailer.getTestMessageUrl(info));
+  console.log("Correo enviado: %s", info.messageId);
+  console.log("Ver en Ethereal: %s", nodemailer.getTestMessageUrl(info));
 };

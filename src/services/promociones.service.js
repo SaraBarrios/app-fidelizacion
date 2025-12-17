@@ -115,9 +115,14 @@ export const deletePromocionService = async (id) => {
   await pool.query("DELETE FROM promociones WHERE id=$1", [id]);
 };
 
+// ================================
 // SERVICIO PROMOCIONES PERSONALIZADAS
+// ================================
 export const obtenerPromocionesParaClienteService = async (clienteId) => {
-  // 1) Obtener datos del cliente
+
+  /* 
+     1. Obtener datos del cliente
+  */
   const clienteQuery = `
     SELECT 
       c.*,
@@ -128,34 +133,46 @@ export const obtenerPromocionesParaClienteService = async (clienteId) => {
     WHERE c.id = $1
     GROUP BY c.id
   `;
-  
+
   const clienteRes = await pool.query(clienteQuery, [clienteId]);
   if (clienteRes.rowCount === 0) return [];
 
   const clienteRaw = clienteRes.rows[0];
 
-  // 2) Convertir edad y puntos a número
   const cliente = {
     ...clienteRaw,
     edad: Number(clienteRaw.edad),
     puntos_actuales: Number(clienteRaw.puntos_actuales)
   };
 
-  console.log('Cliente para promociones:', cliente);
-
-  // 3) Filtrar promociones según atributos del cliente
+  /*
+     2. Buscar promociones
+     - Vigentes
+     - Compatibles con el cliente
+     - NO utilizadas
+  */
   const promosQuery = `
-  SELECT *
-  FROM promociones
-  WHERE (edad_min IS NULL OR $1 >= edad_min)
-    AND (edad_max IS NULL OR $1 <= edad_max)
-    AND (nacionalidad IS NULL OR nacionalidad = $2)
-    AND (ciudad IS NULL OR ciudad ILIKE $3)
-    AND (nivel_requerido IS NULL OR nivel_requerido ILIKE $4)
-    AND (puntos_min IS NULL OR $5 >= puntos_min)
-    AND (puntos_max IS NULL OR $5 <= puntos_max)
-    AND (fecha_inicio IS NULL OR fecha_fin IS NULL OR (CURRENT_DATE >= fecha_inicio AND CURRENT_DATE <= fecha_fin))
-`;
+    SELECT p.*
+    FROM promociones p
+    WHERE (p.edad_min IS NULL OR $1 >= p.edad_min)
+      AND (p.edad_max IS NULL OR $1 <= p.edad_max)
+      AND (p.nacionalidad IS NULL OR p.nacionalidad = $2)
+      AND (p.ciudad IS NULL OR p.ciudad ILIKE $3)
+      AND (p.nivel_requerido IS NULL OR p.nivel_requerido ILIKE $4)
+      AND (p.puntos_min IS NULL OR $5 >= p.puntos_min)
+      AND (p.puntos_max IS NULL OR $5 <= p.puntos_max)
+      AND (
+        p.fecha_inicio IS NULL 
+        OR p.fecha_fin IS NULL 
+        OR CURRENT_DATE BETWEEN p.fecha_inicio AND p.fecha_fin
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM promociones_uso pu
+        WHERE pu.promocion_id = p.id
+          AND pu.cliente_id = $6
+      )
+  `;
 
   const promoRes = await pool.query(promosQuery, [
     cliente.edad,
@@ -163,6 +180,7 @@ export const obtenerPromocionesParaClienteService = async (clienteId) => {
     cliente.ciudad,
     cliente.nivel,
     cliente.puntos_actuales,
+    clienteId
   ]);
 
   return promoRes.rows;

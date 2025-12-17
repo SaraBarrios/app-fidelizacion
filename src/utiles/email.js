@@ -1,17 +1,29 @@
 import nodemailer from "nodemailer";
 
-// Crear transporte con Ethereal
-const transporter = nodemailer.createTransport({
-  host: "smtp.ethereal.email",
-  port: 587,
-  auth: {
-    user: "joyce.zieme@ethereal.email",  // reemplazá con tu usuario
-    pass: "NrPyuhWJaBrBEc5EjS",          // reemplazá con tu contraseña
-  },
-});
+let transporter; // se inicializa solo una vez
+
+const initTransporter = async () => {
+  if (!transporter) {
+    // Genera una cuenta de prueba automáticamente
+    const testAccount = await nodemailer.createTestAccount();
+
+    transporter = nodemailer.createTransport({
+      host: testAccount.smtp.host,
+      port: testAccount.smtp.port,
+      secure: testAccount.smtp.secure,
+      auth: {
+        user: testAccount.user,
+        pass: testAccount.pass,
+      },
+    });
+  }
+  return transporter;
+};
 
 export const sendEmail = async ({ to, subject, text, html }) => {
-  const info = await transporter.sendMail({
+  const t = await initTransporter();
+
+  const info = await t.sendMail({
     from: '"Sistema Fidelización" <no-reply@fidelizacion.com>',
     to,
     subject,
